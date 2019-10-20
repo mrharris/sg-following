@@ -1,113 +1,114 @@
 import re
 from datetime import datetime
 import json
+import os
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import shotgun_api3
 
 from . import app
 
+# TODO
+# single user
+# query entites on only when asked for
+# table tabs
+# unfollow button
+# unfollow selected button
+
+
+sg = shotgun_api3.Shotgun(
+    os.environ.get("SG_URL"),
+    script_name=os.environ.get("SG_SCRIPT_NAME"),
+    api_key=os.environ.get("SG_SCRIPT_KEY"),
+)
+
 @app.route("/")
 def home():
-    return render_template("home.html")
-
-@app.route("/about/")
-def about():
-    return render_template("about.html")
-
-@app.route("/contact/")
-def contact():
-    return render_template("contact.html")
-
-@app.route("/hello/")
-@app.route("/hello/<name>")
-def hello_there(name=None):
-    return render_template(
-        "hello_there.html",
-        name=name,
-        date=datetime.now()
-    )
-
-@app.route("/api/data")
-def get_data():
-    return app.send_static_file("data.json")
-
+    v = os.environ.get("SG_URL"),
+    return jsonify(get_followed_entities(
+        {"type": "HumanUser", "id": 101},
+        {"type": "Project", "id": 137},
+    ))
 
 @app.route("/following/", methods=['POST'])
 def following():
-    sg = shotgun_api3.Shotgun(
-        "https://xxx.shotgunstudio.com",
-        script_name="xxx",
-        api_key="xxx",
-    )
-
     post_dict = request.form.to_dict()
-    
+
+    sg_server = "https://{}".format(post_dict["server_hostname"])
     entity_ids = post_dict["selected_ids"] or post_dict["ids"]
     entity_ids = [int(id_) for id_ in entity_ids.split(",")]
-
-
+    project = {"type": "Project", "id": 137}
     user_id_to_entities = {}
+
+    sg = shotgun_api3.Shotgun(
+        sg_server,
+        script_name=os.environ.get("SG_SCRIPT_NAME"),
+        api_key=os.environ.get("SG_SCRIPT_KEY"),
+    )
+
     user_entities = sg.find("HumanUser", [["id", "in", entity_ids]], ["login"])
-    for user_entity in user_entities:
-        followed = sg.following(
-            user=user_entity,
-            entity_type="Task",
-        )
-        followed = sg.find(
-                "Task",
-                [["id", "in", [e["id"] for e in followed]]],
-                ["content", "entity", "image"]
+    for user in user_entities:
+        entities = get_followed_entities(user, project, "Task")
+        user_id_to_entities[user["login"]] = entities
+
+    return jsonify(entities)
+
+
+@app.route("/following/task")
+def following_task():
+    entities = get_followed_entities(
+        {"type": "HumanUser", "id": 101},
+        {"type": "Project", "id": 137},
+        "Task",
+    )
+    return jsonify({"data": entities})
+
+@app.route("/following/note")
+def following_note():
+    entities = get_followed_entities(
+        {"type": "HumanUser", "id": 101},
+        {"type": "Project", "id": 137},
+        "Note",
+    )
+    return jsonify({"data": entities})
+
+
+def get_followed_entities(user, project, entity_type):
+
+    followed = sg.following(user=user, project=project, entity_type=entity_type)
+
+    entity_queries = {
+        "Asset": ["code", "image"],
+        "Shot": ["code", "image"],
+        "Task": ["content", "entity", "image"],
+        "Version": ["code", "entity", "image"],
+        "Note": ["subject", "note_links"],
+    }
+
+    # populate the shotgun entities
+    entities = [e for e in followed if e["type"] == entity_type]
+    if entities:
+        entities = sg.find(
+                entity_type,
+                [["id", "in", [e["id"] for e in entities]]],
+                entity_queries[entity_type],
             )
-        user_id_to_entities[user_entity["login"]] = followed
+        for entity in entities:
+            conform(entity)
+    return entities
 
+def entity_url(entity):
+    return "{}/detail/{}/{}".format(sg.base_url, entity["type"], entity["id"])
 
-    html = _html_header()
-    for user, followed in user_id_to_entities.items():
-        html += "<h3>{}</h3>".format(user)
-        for entity in followed:
-            if entity["image"]:
-                link = "https://{}/detail/{}/{}".format(
-                    post_dict["server_hostname"],
-                    entity["type"],
-                    entity["id"],
-                )
-                title = "{}/{}".format(entity["entity"]["name"], entity["content"])
-                html += _image_html(link, entity["image"], title)
+def conform(entity):
+    """Ensure this entity has the fields needed by datatables"""
+    entity["url"] = entity_url(entity)
+    entity["image"] = entity.get("image") or "placeholder.png"
     
-    return html
-
-def _html_header():
-    return """
-<html>
-    <head>
-        <style>
-            div.gallery {
-                margin: 5px;
-                border: 1px solid #ccc;
-                float: left;
-            }
-            div.desc {
-                padding: 15px;
-                text-align: center;
-            }
-        </style>
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-    </head>
-    <body>
-        <br>
-        <h1>Followed Tasks</h1>
-        <hr>
-    </body>
-</html>
-"""
-
-def _image_html(link, image, title):
-    return """
-<div class="gallery">
-    <a href="{link}">
-        <img src="{image}">
-    </a>
-    <div class="desc">{title}</div>
-</div>
-    """.format(link=link, image=image, title=title)
+    # recurse through any linked entities
+    for field, value in entity.items():
+        if not isinstance(value, list):
+            value = [value]
+        for v in value:
+            if isinstance(v, dict) and "id" in v:
+                conform(v)
