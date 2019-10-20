@@ -10,11 +10,9 @@ from . import app
 
 # TODO
 # single user
-# query entites on only when asked for
-# table tabs
 # unfollow button
 # unfollow selected button
-
+# render datatables from flask
 
 sg = shotgun_api3.Shotgun(
     os.environ.get("SG_URL"),
