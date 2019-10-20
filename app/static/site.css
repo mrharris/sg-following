@@ -1,32 +1,11 @@
-.message {
-    font-weight: 600;
-    color: blue;
+.tab-pane {
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+  border-radius: 0px 0px 5px 5px;
+  padding: 10px;
 }
 
-.navbar {
-    background-color: lightslategray;
-    font-size: 1em;
-    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-    color: white;
-    padding: 8px 5px 8px 5px;
-}
-
-.navbar a {
-    text-decoration: none;
-    color: inherit;
-}
-
-.navbar-brand {
-    font-size: 1.2em;
-    font-weight: 600;
-}
-
-.navbar-item {
-    font-variant: small-caps;
-    margin-left: 30px;
-}
-
-.body-content {
-    padding: 5px;
-    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+.nav-tabs {
+  margin-bottom: 0;
 }
