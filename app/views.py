@@ -19,57 +19,36 @@ sg = shotgun_api3.Shotgun(
 )
 
 
-@app.route("/")
-def home():
-    v = (os.environ.get("SG_URL"),)
-    return jsonify(
-        get_followed_entities(
-            {"type": "HumanUser", "id": 101}, {"type": "Project", "id": 137}, "Task"
-        )
-    )
-
-
-@app.route("/following/", methods=["POST"])
+@app.route("/following", methods=["POST"])
 def following():
     post_dict = request.form.to_dict()
-    sg_server = "https://{}".format(post_dict["server_hostname"])
-
-    sg = shotgun_api3.Shotgun(
-        sg_server,
-        script_name=os.environ.get("SG_SCRIPT_NAME"),
-        api_key=os.environ.get("SG_SCRIPT_KEY"),
-    )
-
     entity_ids = post_dict["selected_ids"] or post_dict["ids"]
     entity_ids = [int(id_) for id_ in entity_ids.split(",")]
-    user = {"type": "HumanUser", "id": entity_ids[0]}
-    user = sg.find_one("HumanUser", [["id", "is", user["id"]]], ["name"])
-    project = {"type": "Project", "id": 137}
+    user = sg.find_one("HumanUser", [["id", "is", entity_ids[0]]], ["name"])
 
     return render_template("datatables.html", user=user)
 
 
-@app.route("/following/task")
-def following_task():
-    entities = get_followed_entities(
-        {"type": "HumanUser", "id": 101}, {"type": "Project", "id": 137}, "Task"
-    )
-    return jsonify({"data": entities})
-
-
 @app.route("/following/<string:entity_type>/<int:user_id>")
 def followed_entities(entity_type, user_id):
-    entities = get_followed_entities(
-        {"type": "HumanUser", "id": user_id},
-        {"type": "Project", "id": 137},
-        entity_type,
-    )
+    entities = get_followed_entities({"type": "HumanUser", "id": user_id}, entity_type)
     return jsonify({"data": entities})
 
 
-def get_followed_entities(user, project, entity_type):
+@app.route("/unfollow", methods=["POST"])
+def unfollow_entities():
+    request_json = request.get_json()
+    user = {"type": "HumanUser", "id": request_json["user_id"]}
+    entities = request_json["entities"]
+    for entity in entities:
+        print("Unfollowing", entity)
+        sg.unfollow(user, entity)
+    return jsonify({"success": True})
 
-    followed = sg.following(user=user, project=project, entity_type=entity_type)
+
+def get_followed_entities(user, entity_type):
+
+    followed = sg.following(user=user, entity_type=entity_type)
 
     entity_queries = {
         "Asset": ["code", "image"],
@@ -79,7 +58,8 @@ def get_followed_entities(user, project, entity_type):
         "Note": ["subject", "note_links"],
     }
 
-    # populate the shotgun entities
+    # populate the shotgun entities so they have
+    # the fields we want to show in the tables
     entities = [e for e in followed if e["type"] == entity_type]
     if entities:
         entities = sg.find(

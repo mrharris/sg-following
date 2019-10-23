@@ -3,14 +3,12 @@ $(document).ready(function () {
 })
 
 $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', function (e) {
-  console.table(e)
   if (e.target.id === 'notes_tab') {
     create_notes_table()
   }
 })
 
 function create_notes_table () {
-  console.log(get_route_for_entity('Note'))
   let notes_table = $('#notes_table').DataTable({
     retrieve: true,
     select: true,
@@ -86,6 +84,35 @@ function create_tasks_table () {
 
 function get_route_for_entity (entity) {
   let user_id = $('#user_id').html()
-  let url = 'http://127.0.0.1:5000/following/' + entity + '/' + user_id
+  let url = '/following/' + entity + '/' + user_id
   return url
+}
+
+function unfollow () {
+  let user_id = parseInt($('#user_id').html())
+  let selected_entities = []
+  // get all the tables with sg-table class and then get all their selected rows
+  let selected_rows = $('.sg-table')
+    .DataTable()
+    .rows({ selected: true })
+  selected_rows
+    .data()
+    .each(row => selected_entities.push({ id: row.id, type: row.type }))
+
+  // post the entities to the flask server to do the unfollowing
+  fetch('/unfollow', {
+    method: 'POST',
+    body: JSON.stringify({
+      entities: selected_entities,
+      user_id: user_id
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+    .then(resp => resp.json()) // Transform the data into json
+    .then(function (data) {
+      selected_rows.remove().draw()
+    })
+    .catch(error => console.error('err' + error))
 }
