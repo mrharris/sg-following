@@ -8,10 +8,6 @@ import shotgun_api3
 
 from . import app
 
-# TODO
-# unfollow button
-# unfollow selected button
-
 sg = shotgun_api3.Shotgun(
     os.environ.get("SG_URL"),
     script_name=os.environ.get("SG_SCRIPT_NAME"),
@@ -54,7 +50,6 @@ def get_followed_entities(user, entity_type):
         "Asset": ["code", "image"],
         "Shot": ["code", "image"],
         "Task": ["content", "entity", "image"],
-        "Version": ["code", "entity", "image"],
         "Note": ["subject", "note_links"],
     }
 

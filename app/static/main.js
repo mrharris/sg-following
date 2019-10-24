@@ -5,6 +5,8 @@ $(document).ready(function () {
 $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', function (e) {
   if (e.target.id === 'notes_tab') {
     create_notes_table()
+  } else if (e.target.id === 'assets_tab') {
+    create_assets_table()
   }
 })
 
@@ -44,6 +46,33 @@ function create_notes_table () {
     ]
   })
   return notes_table
+}
+
+function create_assets_table () {
+  let assets_table = $('#assets_table').DataTable({
+    retrieve: true,
+    select: true,
+    scrollY: 800,
+    ajax: get_route_for_entity('Asset'),
+    columns: [{ data: 'image' }, { data: 'code' }],
+    columnDefs: [
+      {
+        targets: [0],
+        searchable: false,
+        sortable: false,
+        render: function (data) {
+          return '<img src="' + data + '">'
+        }
+      },
+      {
+        targets: [1],
+        render: function (data, type, row) {
+          return '<a href="' + row.url + '">' + data + '</a>'
+        }
+      }
+    ]
+  })
+  return assets_table
 }
 
 function create_tasks_table () {
