@@ -16,7 +16,7 @@
 
 <body>
   <div class="container">
-    <div hidden id="user_id">{{ user.id }}</div>
+    <div id="user_id" data-user="{{user | tojson | forceescape}}"></div>
     <h3 class="text-right">{{ user.name }}</h3>
 
     <ul class="nav nav-tabs" role="tablist">

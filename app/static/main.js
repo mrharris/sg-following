@@ -111,14 +111,19 @@ function create_tasks_table () {
   })
 }
 
+function get_user(){
+  let user_div = document.querySelector("#user_id");
+  return JSON.parse(user_div.dataset.user);
+}
+
 function get_route_for_entity (entity) {
-  let user_id = $('#user_id').html()
-  let url = '/following/' + entity + '/' + user_id
-  return url
+  let user_id = get_user().id;
+  let url = '/following/' + entity + '/' + user_id;
+  return url;
 }
 
 function unfollow () {
-  let user_id = parseInt($('#user_id').html())
+  let user_id = get_user().id;
   let selected_entities = []
   // get all the tables with sg-table class and then get all their selected rows
   let selected_rows = $('.sg-table')
